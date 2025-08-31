@@ -8,25 +8,95 @@
     <link rel="stylesheet" href="/static/css/styles.css">
 </head>
 <body>
-    <h1>Simulación Distribución Multinomial</h1>
+    <div class="container">
+        <h1>🎲 Calculadora de Distribución Multinomial</h1>
+        
+        <div class="tabs">
+            <button class="tab-button active" onclick="cambiarTab('simulacion')">Simulación</button>
+            <button class="tab-button" onclick="cambiarTab('probabilidad')">Probabilidad Exacta</button>
+        </div>
 
-    <form id="formulario">
-        <label>Número de experimentos:</label>
-        <input type="number" id="n_experimentos" value="20" required><br>
+        <!-- Tab de Simulación -->
+        <div id="simulacion" class="tab-content active">
+            <h2>Simulación Multinomial</h2>
+            <form id="formulario-simulacion">
+                <div class="input-group">
+                    <label>Número de experimentos:</label>
+                    <input type="number" id="n_experimentos" value="20" min="1" required>
+                </div>
 
-        <label>Categorías (separadas por comas):</label>
-        <input type="text" id="categorias" value="A,B,C" required><br>
+                <div class="input-group">
+                    <label>Categorías (separadas por comas):</label>
+                    <input type="text" id="categorias" value="A,B,C" required>
+                </div>
 
-        <label>Probabilidades (separadas por comas):</label>
-        <input type="text" id="probabilidades" value="0.3,0.5,0.2" required><br>
+                <div class="input-group">
+                    <label>Probabilidades (separadas por comas):</label>
+                    <input type="text" id="probabilidades" value="0.3,0.5,0.2" required>
+                    <small>Deben sumar 1.0</small>
+                </div>
 
-        <button type="submit">Simular</button>
-    </form>
+                <button type="submit" class="btn-primary">🎯 Simular</button>
+            </form>
 
-    <h2>Resultados</h2>
-    <pre id="resultado_texto"></pre>
+            <div id="resultado-simulacion" class="resultado" style="display: none;">
+                <h3>Resultados de la Simulación</h3>
+                <pre id="resultado_texto"></pre>
+            </div>
+        </div>
 
-    <canvas id="grafica"></canvas>
+        <!-- Tab de Probabilidad Exacta -->
+        <div id="probabilidad" class="tab-content">
+            <h2>Cálculo de Probabilidad Exacta</h2>
+            <form id="formulario-probabilidad">
+                <div class="input-group">
+                    <label>Número de experimentos:</label>
+                    <input type="number" id="n_experimentos_prob" value="10" min="1" required>
+                </div>
+
+                <div class="input-group">
+                    <label>Categorías (separadas por comas):</label>
+                    <input type="text" id="categorias_prob" value="A,B,C" required>
+                </div>
+
+                <div class="input-group">
+                    <label>Probabilidades (separadas por comas):</label>
+                    <input type="text" id="probabilidades_prob" value="0.3,0.5,0.2" required>
+                    <small>Deben sumar 1.0</small>
+                </div>
+
+                <div class="input-group">
+                    <label>Frecuencias deseadas (separadas por comas):</label>
+                    <input type="text" id="frecuencias_deseadas" value="3,5,2" required>
+                    <small>Deben sumar el número total de experimentos</small>
+                </div>
+
+                <div class="buttons">
+                    <button type="submit" class="btn-primary">📊 Calcular Probabilidad</button>
+                    <button type="button" id="btn-verificar" class="btn-secondary" style="display: none;">🔬 Verificar con Simulación</button>
+                </div>
+            </form>
+
+            <div id="resultado-probabilidad" class="resultado" style="display: none;">
+                <h3>Cálculo Detallado</h3>
+                <div id="calculo-detallado"></div>
+                
+                <h3>Interpretación</h3>
+                <div id="interpretacion"></div>
+            </div>
+
+            <div id="resultado-verificacion" class="resultado" style="display: none;">
+                <h3>Verificación por Simulación</h3>
+                <div id="verificacion-detalle"></div>
+            </div>
+        </div>
+
+        <div id="grafica-container" style="display: none;">
+            <h3>Visualización</h3>
+            <canvas id="grafica"></canvas>
+        </div>
+    </div>
+
 
     <script src="/static/js/script.js"></script>
 
