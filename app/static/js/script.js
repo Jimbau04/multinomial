@@ -262,7 +262,7 @@ const ctx = document.getElementById("grafica").getContext("2d");
                 },
                 options: {
                     responsive: true,
-                    maintainAspectRatio: false,
+                    
                     plugins: {
                         title: {
                             display: true,
