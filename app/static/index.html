@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MINERIA DE DATOS</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+    <h1>Simulación Distribución Multinomial</h1>
+
+    <form id="formulario">
+        <label>Número de experimentos:</label>
+        <input type="number" id="n_experimentos" value="20" required><br>
+
+        <label>Categorías (separadas por comas):</label>
+        <input type="text" id="categorias" value="A,B,C" required><br>
+
+        <label>Probabilidades (separadas por comas):</label>
+        <input type="text" id="probabilidades" value="0.3,0.5,0.2" required><br>
+
+        <button type="submit">Simular</button>
+    </form>
+
+    <h2>Resultados</h2>
+    <pre id="resultado_texto"></pre>
+
+    <canvas id="grafica"></canvas>
+
+    <script src="/static/js/script.js"></script>
+
+    
+</body>
+</html>
