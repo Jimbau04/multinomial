@@ -1,275 +1,241 @@
 const ctx = document.getElementById("grafica").getContext("2d");
-let chart;
-let ultimoResultadoProbabilidad = null;
+        let chart;
+        let ultimoResultadoProbabilidad = null;
 
-// Funciones para cambiar tabs
-function cambiarTab(tabName) {
-    // Ocultar todos los tabs
-    document.querySelectorAll('.tab-content').forEach(tab => {
-        tab.classList.remove('active');
-    });
-    document.querySelectorAll('.tab-button').forEach(btn => {
-        btn.classList.remove('active');
-    });
+        // Funciones para cambiar tabs
+        function cambiarTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
 
-    // Mostrar tab seleccionado
-    document.getElementById(tabName).classList.add('active');
-    document.querySelector(`[onclick="cambiarTab('${tabName}')"]`).classList.add('active');
-    
-    // Ocultar gráfica si se cambia de tab
-    document.getElementById('grafica-container').style.display = 'none';
-}
-
-// Formulario de simulación
-document.getElementById("formulario-simulacion").addEventListener("submit", async (e) => {
-    e.preventDefault();
-
-    const n_experimentos = parseInt(document.getElementById("n_experimentos").value);
-    const categorias = document.getElementById("categorias").value.split(",").map(c => c.trim());
-    const probabilidades = document.getElementById("probabilidades").value.split(",").map(Number);
-
-    // Validación básica
-    if (categorias.length !== probabilidades.length) {
-        alert("El número de categorías debe coincidir con el número de probabilidades");
-        return;
-    }
-
-    const payload = { n_experimentos, categorias, probabilidades };
-
-    try {
-        mostrarCargando("Realizando simulación...");
-        
-        const res = await fetch("/multinomial", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload)
-        });
-
-        const data = await res.json();
-        ocultarCargando();
-        
-        if (data.error) {
-            alert("Error: " + data.error);
-            return;
+            document.getElementById(tabName).classList.add('active');
+            document.querySelector(`[onclick="cambiarTab('${tabName}')"]`).classList.add('active');
+            
+            document.getElementById('grafica-container').style.display = 'none';
         }
 
-        // Mostrar resultado
-        document.getElementById("resultado_texto").textContent = JSON.stringify(data, null, 2);
-        document.getElementById("resultado-simulacion").style.display = 'block';
+        // Formulario de simulación
+        document.getElementById("formulario-simulacion").addEventListener("submit", async (e) => {
+            e.preventDefault();
 
-        // Crear gráfica
-        crearGrafica(data.categorias, data.frecuencias_observadas, data.frecuencias_esperadas, "Simulación");
+            const n_experimentos = parseInt(document.getElementById("n_experimentos").value);
+            const categorias = document.getElementById("categorias").value.split(",").map(c => c.trim());
+            const probabilidades = document.getElementById("probabilidades").value.split(",").map(Number);
 
-        // Scroll hacia los resultados
-        document.getElementById("resultado-simulacion").scrollIntoView({ behavior: 'smooth' });
+            if (categorias.length !== probabilidades.length) {
+                alert("El número de categorías debe coincidir con el número de probabilidades");
+                return;
+            }
 
-    } catch (error) {
-        ocultarCargando();
-        console.error(error);
-        alert("Error al conectar con la API");
-    }
-});
+            const suma = probabilidades.reduce((a, b) => a + b, 0);
+            if (Math.abs(suma - 1.0) > 0.01) {
+                alert(`Las probabilidades deben sumar 1.0 (suma actual: ${suma.toFixed(4)})`);
+                return;
+            }
 
-// Formulario de probabilidad exacta
-document.getElementById("formulario-probabilidad").addEventListener("submit", async (e) => {
-    e.preventDefault();
+            const payload = { n_experimentos, categorias, probabilidades };
 
-    const n_experimentos = parseInt(document.getElementById("n_experimentos_prob").value);
-    const categorias = document.getElementById("categorias_prob").value.split(",").map(c => c.trim());
-    const probabilidades = document.getElementById("probabilidades_prob").value.split(",").map(Number);
-    const frecuencias_deseadas = document.getElementById("frecuencias_deseadas").value.split(",").map(Number);
+            try {
+                const res = await fetch("/multinomial", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
 
-    // Validación
-    if (categorias.length !== probabilidades.length || probabilidades.length !== frecuencias_deseadas.length) {
-        alert("Todas las listas deben tener la misma longitud");
-        return;
-    }
+                const data = await res.json();
+                
+                if (data.error) {
+                    alert("Error: " + data.error);
+                    return;
+                }
 
-    const payload = { n_experimentos, categorias, probabilidades, frecuencias_deseadas };
+                document.getElementById("resultado_texto").textContent = JSON.stringify(data, null, 2);
+                document.getElementById("resultado-simulacion").style.display = 'block';
 
-    try {
-        mostrarCargando("Calculando probabilidad exacta...");
-        
-        const res = await fetch("/calcular-probabilidad", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload)
+                crearGrafica(data.categorias, data.frecuencias_observadas, data.frecuencias_esperadas, "Simulación");
+
+            } catch (error) {
+                console.error("Error:", error);
+                alert("Error al conectar con la API: " + error.message);
+            }
         });
 
-        const data = await res.json();
-        ocultarCargando();
-        
-        if (data.error) {
-            alert("Error: " + data.error);
-            return;
-        }
+        // Formulario de probabilidad exacta
+        document.getElementById("formulario-probabilidad").addEventListener("submit", async (e) => {
+            e.preventDefault();
 
-        ultimoResultadoProbabilidad = payload;
-        mostrarResultadoProbabilidad(data);
+            const n_experimentos = parseInt(document.getElementById("n_experimentos_prob").value);
+            const categorias = document.getElementById("categorias_prob").value.split(",").map(c => c.trim());
+            const probabilidades = document.getElementById("probabilidades_prob").value.split(",").map(Number);
+            const frecuencias_deseadas = document.getElementById("frecuencias_deseadas").value.split(",").map(Number);
 
-        // Scroll hacia los resultados
-        document.getElementById("resultado-probabilidad").scrollIntoView({ behavior: 'smooth' });
+            // Validaciones
+            if (categorias.length !== probabilidades.length || probabilidades.length !== frecuencias_deseadas.length) {
+                alert("Todas las listas deben tener la misma longitud");
+                return;
+            }
 
-    } catch (error) {
-        ocultarCargando();
-        console.error(error);
-        alert("Error al conectar con la API");
-    }
-});
+            const sumaProb = probabilidades.reduce((a, b) => a + b, 0);
+            if (Math.abs(sumaProb - 1.0) > 0.01) {
+                alert(`Las probabilidades deben sumar 1.0 (suma actual: ${sumaProb.toFixed(4)})`);
+                return;
+            }
 
-// Botón de verificación
-document.getElementById("btn-verificar").addEventListener("click", async () => {
-    if (!ultimoResultadoProbabilidad) return;
+            const sumaFreq = frecuencias_deseadas.reduce((a, b) => a + b, 0);
+            if (sumaFreq !== n_experimentos) {
+                alert(`Las frecuencias deben sumar ${n_experimentos} (suma actual: ${sumaFreq})`);
+                return;
+            }
 
-    try {
-        mostrarCargando("Realizando simulación de verificación...");
-        
-        const res = await fetch("/simular-verificacion", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(ultimoResultadoProbabilidad)
+            const payload = { n_experimentos, categorias, probabilidades, frecuencias_deseadas };
+
+            try {
+                const res = await fetch("/calcular-probabilidad", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await res.json();
+                
+                if (data.error) {
+                    alert("Error: " + data.error);
+                    return;
+                }
+
+                ultimoResultadoProbabilidad = payload;
+                mostrarResultadoProbabilidad(data);
+
+            } catch (error) {
+                console.error("Error:", error);
+                alert("Error al conectar con la API: " + error.message);
+            }
         });
 
-        const data = await res.json();
-        ocultarCargando();
-        
-        if (data.error) {
-            alert("Error: " + data.error);
-            return;
+        // Botón de verificación
+        document.getElementById("btn-verificar").addEventListener("click", async () => {
+            if (!ultimoResultadoProbabilidad) return;
+
+            try {
+                const res = await fetch("/simular-verificacion", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(ultimoResultadoProbabilidad)
+                });
+
+                const data = await res.json();
+                
+                if (data.error) {
+                    alert("Error: " + data.error);
+                    return;
+                }
+
+                mostrarVerificacion(data);
+
+            } catch (error) {
+                console.error("Error:", error);
+                alert("Error al realizar la verificación: " + error.message);
+            }
+        });
+
+        function mostrarResultadoProbabilidad(data) {
+            const calculoHTML = `
+                <div class="calculo-box">
+                    <h4>📐 Cálculo Paso a Paso</h4>
+                    <p><strong>Coeficiente multinomial:</strong> ${data.coeficiente_multinomial.toLocaleString()}</p>
+                    <p><strong>Producto de probabilidades:</strong> ${data.producto_probabilidades.toExponential(6)}</p>
+                    <div class="resultado-final">
+                        <strong>P(${data.frecuencias_deseadas.join(',')}) = ${data.probabilidad_exacta.toExponential(8)}</strong>
+                    </div>
+                    <h5>Detalles por categoría:</h5>
+                    ${data.detalles_calculo.map(detalle => 
+                        `<p>• <strong>${detalle.categoria}:</strong> ${detalle.termino} = ${detalle.valor.toExponential(4)}</p>`
+                    ).join('')}
+                </div>
+            `;
+            
+            const interpretacionHTML = `
+                <div class="interpretacion-box">
+                    <h4>💡 Interpretación</h4>
+                    <div class="interpretacion-grid">
+                        <div class="interpretacion-item">
+                            <span>Probabilidad:</span>
+                            <span><strong>${data.interpretacion.porcentaje.toExponential(6)}%</strong></span>
+                        </div>
+                        <div class="interpretacion-item">
+                            <span>Frecuencia:</span>
+                            <span><strong>1 en ${data.interpretacion.uno_en.toLocaleString()}</strong></span>
+                        </div>
+                        <div class="interpretacion-item">
+                            <span>Clasificación:</span>
+                            <span class="rareza"><strong>${data.interpretacion.rareza}</strong></span>
+                        </div>
+                        ${data.interpretacion.anos_si_diario > 0 ? 
+                            `<div class="interpretacion-item">
+                                <span>Si fuera diario:</span>
+                                <span><strong>1 cada ${data.interpretacion.anos_si_diario.toLocaleString()} años</strong></span>
+                            </div>` : 
+                            ''}
+                    </div>
+                </div>
+            `;
+
+            document.getElementById("calculo-detallado").innerHTML = calculoHTML;
+            document.getElementById("interpretacion").innerHTML = interpretacionHTML;
+            document.getElementById("resultado-probabilidad").style.display = 'block';
+            document.getElementById("btn-verificar").style.display = 'inline-block';
+
+            crearGrafica(data.categorias, data.frecuencias_deseadas, data.frecuencias_esperadas, "Probabilidad Exacta");
         }
 
-        mostrarVerificacion(data);
-
-        // Scroll hacia la verificación
-        document.getElementById("resultado-verificacion").scrollIntoView({ behavior: 'smooth' });
-
-    } catch (error) {
-        ocultarCargando();
-        console.error(error);
-        alert("Error al realizar la verificación");
-    }
-});
-
-function mostrarResultadoProbabilidad(data) {
-    // Crear HTML para el cálculo detallado
-    const calculoHTML = `
-        <div class="calculo-box">
-            <h4>📐 Fórmula Multinomial</h4>
-            <div class="formula-display">
-                <p><strong>P(${data.frecuencias_deseadas.join(',')}) = Coeficiente × Producto de probabilidades</strong></p>
-            </div>
-            <div class="calculo-pasos">
-                <p><strong>1. Coeficiente multinomial:</strong> ${data.coeficiente_multinomial.toLocaleString()}</p>
-                <p><strong>2. Producto de probabilidades:</strong> ${data.producto_probabilidades.toExponential(6)}</p>
-                <p><strong>3. Resultado:</strong> ${data.calculo_completo.formula}</p>
-            </div>
-            <div class="resultado-final">
-                <strong>P(${data.frecuencias_deseadas.join(',')}) = ${data.probabilidad_exacta.toExponential(8)}</strong>
-            </div>
-        </div>
-        
-        <div class="detalles-calculo">
-            <h4>🔍 Detalles por Categoría</h4>
-            ${data.detalles_calculo.map(detalle => 
-                `<div class="detalle-item">
-                    <strong>${detalle.categoria}:</strong> ${detalle.termino} = ${detalle.valor.toExponential(4)}
-                </div>`
-            ).join('')}
-        </div>
-    `;
-    
-    // Crear HTML para la interpretación
-    const interpretacionHTML = `
-        <div class="interpretacion-box">
-            <h4>💡 Interpretación del Resultado</h4>
-            <div class="interpretacion-grid">
-                <div class="interpretacion-item">
-                    <span class="label">Probabilidad:</span>
-                    <span class="value">${data.interpretacion.porcentaje.toExponential(6)}%</span>
+        function mostrarVerificacion(data) {
+            const sim = data.simulacion;
+            const verificacionHTML = `
+                <div class="verificacion-box">
+                    <h4>🧪 Verificación por Simulación</h4>
+                    <p><strong>Simulaciones realizadas:</strong> ${sim.num_simulaciones.toLocaleString()}</p>
+                    <p><strong>Éxitos encontrados:</strong> ${sim.exitos_encontrados.toLocaleString()}</p>
+                    <p><strong>Probabilidad simulada:</strong> ${sim.probabilidad_simulada.toExponential(6)}</p>
+                    <p><strong>Probabilidad teórica:</strong> ${sim.probabilidad_teorica.toExponential(6)}</p>
+                    <p><strong>Error porcentual:</strong> ${sim.error_porcentual.toFixed(2)}%</p>
+                    <p><strong>Concordancia:</strong> <span style="color: ${getConcordanciaColor(sim.concordancia)}; font-weight: bold;">${sim.concordancia.toUpperCase()}</span></p>
+                    ${getConcordanciaMessage(sim.concordancia, sim.error_porcentual)}
                 </div>
-                <div class="interpretacion-item">
-                    <span class="label">Frecuencia:</span>
-                    <span class="value">1 en ${data.interpretacion.uno_en.toLocaleString()} experimentos</span>
-                </div>
-                <div class="interpretacion-item">
-                    <span class="label">Clasificación:</span>
-                    <span class="value rareza-${data.interpretacion.rareza.replace(' ', '-')}">${data.interpretacion.rareza}</span>
-                </div>
-                ${data.interpretacion.anos_si_diario > 0 ? 
-                    `<div class="interpretacion-item">
-                        <span class="label">Si fuera diario:</span>
-                        <span class="value">Una vez cada ${data.interpretacion.anos_si_diario.toLocaleString()} años</span>
-                    </div>` : 
-                    ''}
-            </div>
-        </div>
-    `;
+            `;
 
-    document.getElementById("calculo-detallado").innerHTML = calculoHTML;
-    document.getElementById("interpretacion").innerHTML = interpretacionHTML;
-    document.getElementById("resultado-probabilidad").style.display = 'block';
-    document.getElementById("btn-verificar").style.display = 'inline-block';
+            document.getElementById("verificacion-detalle").innerHTML = verificacionHTML;
+            document.getElementById("resultado-verificacion").style.display = 'block';
+        }
 
-    // Crear gráfica comparativa
-    crearGrafica(data.categorias, data.frecuencias_deseadas, data.frecuencias_esperadas, "Probabilidad Exacta");
-}
+        function getConcordanciaColor(concordancia) {
+            switch(concordancia) {
+                case 'excelente': return '#27ae60';
+                case 'buena': return '#f39c12';
+                case 'regular': return '#e74c3c';
+                default: return '#7f8c8d';
+            }
+        }
 
-function mostrarVerificacion(data) {
-    const sim = data.simulacion;
-    const verificacionHTML = `
-        <div class="verificacion-box">
-            <h4>🧪 Resultados de la Simulación</h4>
-            <div class="verificacion-grid">
-                <div class="verificacion-item">
-                    <span class="label">Simulaciones realizadas:</span>
-                    <span class="value">${sim.num_simulaciones.toLocaleString()}</span>
-                </div>
-                <div class="verificacion-item">
-                    <span class="label">Éxitos encontrados:</span>
-                    <span class="value">${sim.exitos_encontrados.toLocaleString()}</span>
-                </div>
-                <div class="verificacion-item">
-                    <span class="label">Probabilidad simulada:</span>
-                    <span class="value">${sim.probabilidad_simulada.toExponential(6)}</span>
-                </div>
-                <div class="verificacion-item">
-                    <span class="label">Probabilidad teórica:</span>
-                    <span class="value">${sim.probabilidad_teorica.toExponential(6)}</span>
-                </div>
-                <div class="verificacion-item">
-                    <span class="label">Error porcentual:</span>
-                    <span class="value">${sim.error_porcentual.toFixed(2)}%</span>
-                </div>
-                <div class="verificacion-item">
-                    <span class="label">Concordancia:</span>
-                    <span class="value concordancia-${sim.concordancia}">${sim.concordancia.toUpperCase()}</span>
-                </div>
-            </div>
-            <div class="concordancia-mensaje">
-                ${getConcordanciaMessage(sim.concordancia, sim.error_porcentual)}
-            </div>
-        </div>
-    `;
+        function getConcordanciaMessage(concordancia, errorPorcentual) {
+            switch(concordancia) {
+                case 'excelente':
+                    return `<div style="background: #d5f4e6; padding: 10px; border-radius: 4px; margin-top: 10px; color: #27ae60;">✅ Excelente concordancia (${errorPorcentual.toFixed(2)}% de error)</div>`;
+                case 'buena':
+                    return `<div style="background: #fef9e7; padding: 10px; border-radius: 4px; margin-top: 10px; color: #f39c12;">✅ Buena concordancia (${errorPorcentual.toFixed(2)}% de error)</div>`;
+                case 'regular':
+                    return `<div style="background: #fdeaea; padding: 10px; border-radius: 4px; margin-top: 10px; color: #e74c3c;">⚠️ Concordancia regular. Considere aumentar simulaciones</div>`;
+                default:
+                    return '';
+            }
+        }
 
-    document.getElementById("verificacion-detalle").innerHTML = verificacionHTML;
-    document.getElementById("resultado-verificacion").style.display = 'block';
-}
-
-function getConcordanciaMessage(concordancia, errorPorcentual) {
-    switch(concordancia) {
-        case 'excelente':
-            return `<div class="mensaje-excelente">✅ Excelente concordancia entre teoría y simulación (${errorPorcentual.toFixed(2)}% de error)</div>`;
-        case 'buena':
-            return `<div class="mensaje-buena">✅ Buena concordancia entre teoría y simulación (${errorPorcentual.toFixed(2)}% de error)</div>`;
-        case 'regular':
-            return `<div class="mensaje-regular">⚠️ Concordancia regular. Considere aumentar el número de simulaciones</div>`;
-        default:
-            return '';
-    }
-}
-
-function crearGrafica(labels, observadas, esperadas, titulo) {
-            if (chart) chart.destroy();
+        function crearGrafica(labels, observadas, esperadas, titulo) {
+            if (chart) {
+                chart.destroy();
+            }
 
             document.getElementById('grafica-container').style.display = 'block';
 
@@ -281,14 +247,14 @@ function crearGrafica(labels, observadas, esperadas, titulo) {
                         {
                             label: titulo === "Simulación" ? "Frecuencias Observadas" : "Frecuencias Deseadas",
                             data: observadas,
-                            backgroundColor: "rgba(54, 162, 235, 0.8)",
+                            backgroundColor: "rgba(54, 162, 235, 0.7)",
                             borderColor: "rgba(54, 162, 235, 1)",
                             borderWidth: 2
                         },
                         {
                             label: "Frecuencias Esperadas",
                             data: esperadas,
-                            backgroundColor: "rgba(255, 206, 86, 0.8)",
+                            backgroundColor: "rgba(255, 206, 86, 0.7)",
                             borderColor: "rgba(255, 206, 86, 1)",
                             borderWidth: 2
                         }
@@ -296,14 +262,23 @@ function crearGrafica(labels, observadas, esperadas, titulo) {
                 },
                 options: {
                     responsive: true,
+                    maintainAspectRatio: false,
                     plugins: {
                         title: {
                             display: true,
                             text: `${titulo} - Comparación de Frecuencias`,
-                            font: { size: 16 }
+                            font: { 
+                                size: 16,
+                                weight: 'bold'
+                            },
+                            padding: 20
                         },
                         legend: {
-                            position: 'top'
+                            position: 'top',
+                            labels: {
+                                padding: 20,
+                                font: { size: 12 }
+                            }
                         }
                     },
                     scales: {
@@ -323,4 +298,50 @@ function crearGrafica(labels, observadas, esperadas, titulo) {
                     }
                 }
             });
-}
+
+            // Scroll a la gráfica
+            setTimeout(() => {
+                document.getElementById('grafica-container').scrollIntoView({ behavior: 'smooth' });
+            }, 100);
+        }
+
+        // Auto-completar frecuencias deseadas
+        document.getElementById("n_experimentos_prob").addEventListener("input", actualizarFrecuenciasEsperadas);
+        document.getElementById("probabilidades_prob").addEventListener("input", actualizarFrecuenciasEsperadas);
+        document.getElementById("categorias_prob").addEventListener("input", actualizarFrecuenciasEsperadas);
+
+        function actualizarFrecuenciasEsperadas() {
+            try {
+                const n = parseInt(document.getElementById("n_experimentos_prob").value);
+                const categoriasText = document.getElementById("categorias_prob").value;
+                const probabilidadesText = document.getElementById("probabilidades_prob").value;
+                
+                if (n > 0 && categoriasText && probabilidadesText) {
+                    const categorias = categoriasText.split(",").map(c => c.trim());
+                    const probabilidades = probabilidadesText.split(",").map(Number);
+                    
+                    if (categorias.length === probabilidades.length && 
+                        probabilidades.every(p => !isNaN(p) && p > 0)) {
+                        
+                        // Calcular frecuencias esperadas
+                        const frecuenciasEsperadas = probabilidades.map(p => Math.round(n * p));
+                        
+                        // Ajustar para que sumen exactamente n
+                        const suma = frecuenciasEsperadas.reduce((a, b) => a + b, 0);
+                        const diferencia = n - suma;
+                        
+                        if (diferencia !== 0) {
+                            const maxIndex = probabilidades.indexOf(Math.max(...probabilidades));
+                            frecuenciasEsperadas[maxIndex] += diferencia;
+                        }
+                        
+                        document.getElementById("frecuencias_deseadas").value = frecuenciasEsperadas.join(",");
+                    }
+                }
+            } catch (error) {
+                console.log("Error en auto-completado:", error);
+            }
+        }
+
+        // Inicializar con frecuencias esperadas
+        actualizarFrecuenciasEsperadas();

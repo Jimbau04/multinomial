@@ -1,12 +1,22 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List
 import random
 import math
 
 app = FastAPI()
+
+# Configurar CORS para desarrollo
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Servir carpeta static
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
@@ -46,13 +56,8 @@ def coeficiente_multinomial(n, frecuencias):
     return numerador / denominador
 
 def potencia(base, exponente):
-    """Calcula base^exponente de manera sencilla"""
-    if exponente == 0:
-        return 1
-    resultado = 1
-    for _ in range(exponente):
-        resultado *= base
-    return resultado
+    """Calcula base^exponente usando la función math.pow para mayor precisión"""
+    return math.pow(base, exponente)
 
 def funcion_densidad_multinomial(n, frecuencias, probabilidades):
     """Calcula la función de densidad multinomial"""
@@ -116,19 +121,22 @@ def validar_entrada(probabilidades, frecuencias_deseadas=None, n_experimentos=No
 @app.post("/multinomial")
 def multinomial(req: MultinomialRequest):
     """Endpoint original - simulación básica"""
-    error = validar_entrada(req.probabilidades)
-    if error:
-        return {"error": error}
+    try:
+        error = validar_entrada(req.probabilidades)
+        if error:
+            raise HTTPException(status_code=400, detail=error)
 
-    # Realizar simulación
-    resultados = simular_multinomial_simple(req.n_experimentos, req.probabilidades)
-    esperadas = [req.n_experimentos * p for p in req.probabilidades]
+        # Realizar simulación
+        resultados = simular_multinomial_simple(req.n_experimentos, req.probabilidades)
+        esperadas = [req.n_experimentos * p for p in req.probabilidades]
 
-    return {
-        "categorias": req.categorias,
-        "frecuencias_observadas": resultados,
-        "frecuencias_esperadas": esperadas
-    }
+        return {
+            "categorias": req.categorias,
+            "frecuencias_observadas": resultados,
+            "frecuencias_esperadas": esperadas
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error en simulación: {str(e)}")
 
 @app.post("/calcular-probabilidad")
 def calcular_probabilidad(req: ProbabilityRequest):
