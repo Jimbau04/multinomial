@@ -7,6 +7,7 @@ from typing import List
 import random
 import math
 
+
 app = FastAPI()
 
 # Configurar CORS para desarrollo
