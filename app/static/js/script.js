@@ -146,13 +146,13 @@ const ctx = document.getElementById("grafica").getContext("2d");
                 <div class="calculo-box">
                     <h4>📐 Cálculo Paso a Paso</h4>
                     <p><strong>Coeficiente multinomial:</strong> ${data.coeficiente_multinomial.toLocaleString()}</p>
-                    <p><strong>Producto de probabilidades:</strong> ${data.producto_probabilidades.toExponential(6)}</p>
+                    <p><strong>Producto de probabilidades:</strong> ${data.producto_probabilidades.toFixed(6)}</p>
                     <div class="resultado-final">
-                        <strong>P(${data.frecuencias_deseadas.join(',')}) = ${data.probabilidad_exacta.toExponential(8)}</strong>
+                        <strong>P(${data.frecuencias_deseadas.join(',')}) = ${data.probabilidad_exacta.toFixed(8)}</strong>
                     </div>
                     <h5>Detalles por categoría:</h5>
                     ${data.detalles_calculo.map(detalle => 
-                        `<p>• <strong>${detalle.categoria}:</strong> ${detalle.termino} = ${detalle.valor.toExponential(4)}</p>`
+                        `<p>• <strong>${detalle.categoria}:</strong> ${detalle.termino} = ${detalle.valor.toFixed(4)}</p>`
                     ).join('')}
                 </div>
             `;
@@ -163,7 +163,7 @@ const ctx = document.getElementById("grafica").getContext("2d");
                     <div class="interpretacion-grid">
                         <div class="interpretacion-item">
                             <span>Probabilidad:</span>
-                            <span><strong>${data.interpretacion.porcentaje.toExponential(6)}%</strong></span>
+                            <span><strong>${Number(data.interpretacion.porcentaje).toFixed(6)}%</strong></span>
                         </div>
                         <div class="interpretacion-item">
                             <span>Frecuencia:</span>
@@ -198,8 +198,8 @@ const ctx = document.getElementById("grafica").getContext("2d");
                     <h4>🧪 Verificación por Simulación</h4>
                     <p><strong>Simulaciones realizadas:</strong> ${sim.num_simulaciones.toLocaleString()}</p>
                     <p><strong>Éxitos encontrados:</strong> ${sim.exitos_encontrados.toLocaleString()}</p>
-                    <p><strong>Probabilidad simulada:</strong> ${sim.probabilidad_simulada.toExponential(6)}</p>
-                    <p><strong>Probabilidad teórica:</strong> ${sim.probabilidad_teorica.toExponential(6)}</p>
+                    <p><strong>Probabilidad simulada:</strong> ${sim.probabilidad_simulada.toFixed(6)}</p>
+                    <p><strong>Probabilidad teórica:</strong> ${sim.probabilidad_teorica.toFixed(6)}</p>
                     <p><strong>Error porcentual:</strong> ${sim.error_porcentual.toFixed(2)}%</p>
                     <p><strong>Concordancia:</strong> <span style="color: ${getConcordanciaColor(sim.concordancia)}; font-weight: bold;">${sim.concordancia.toUpperCase()}</span></p>
                     ${getConcordanciaMessage(sim.concordancia, sim.error_porcentual)}

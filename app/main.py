@@ -47,6 +47,7 @@ def factorial(n):
         resultado *= i
     return resultado
 
+
 def coeficiente_multinomial(n, frecuencias):
     """Calcula el coeficiente multinomial: n! / (n1! * n2! * ... * nk!)"""
     numerador = factorial(n)
@@ -60,23 +61,29 @@ def potencia(base, exponente):
     return math.pow(base, exponente)
 
 def funcion_densidad_multinomial(n, frecuencias, probabilidades):
-    """Calcula la función de densidad multinomial"""
-    # Verificar que las frecuencias sumen n
+    """
+    Calcula la función de densidad multinomial evitando overflow con logaritmos.
+    """
+    # Validaciones
     if sum(frecuencias) != n:
-        return 0
-    
-    # Calcular coeficiente multinomial
-    coef = coeficiente_multinomial(n, frecuencias)
-    
-    # Calcular producto de probabilidades
-    producto_prob = 1
-    for freq, prob in zip(frecuencias, probabilidades):
-        producto_prob *= potencia(prob, freq)
-    
-    return coef * producto_prob
+        raise ValueError(f"La suma de frecuencias {sum(frecuencias)} no coincide con n={n}")
+    if not math.isclose(sum(probabilidades), 1.0, rel_tol=1e-9):
+        raise ValueError("Las probabilidades deben sumar 1")
+    if any(p <= 0 for p in probabilidades):
+        raise ValueError("Todas las probabilidades deben ser mayores que 0")
+
+    # Calcular en logaritmos: log(n!) - sum(log(ni!))
+    log_coef = math.lgamma(n + 1) - sum(math.lgamma(f + 1) for f in frecuencias)
+
+    # Sumar log(p_i^n_i) = n_i * log(p_i)
+    log_producto_prob = sum(f * math.log(p) for f, p in zip(frecuencias, probabilidades))
+
+    # Sumar todo en log y convertir a probabilidad normal
+    log_prob = log_coef + log_producto_prob
+    return math.exp(log_prob)
 
 def simular_multinomial_simple(n_experimentos, probabilidades):
-    """Simula experimentos multinomiales sin usar numpy"""
+    """Simula experimentos multinomiales"""
     k = len(probabilidades)
     frecuencias = [0] * k
     
@@ -179,6 +186,7 @@ def calcular_probabilidad(req: ProbabilityRequest):
         interpretacion = {}
         if densidad > 0:
             porcentaje = densidad * 100
+            
             uno_en = int(1/densidad)
             
             # Clasificar rareza
@@ -192,8 +200,10 @@ def calcular_probabilidad(req: ProbabilityRequest):
                 rareza = "raro"
             elif densidad >= 0.00001:
                 rareza = "muy raro"
-            else:
+            elif densidad >= 0.000000001:
                 rareza = "extremadamente raro"
+            else:
+                rareza = "casi imposible"
             
             interpretacion = {
                 "porcentaje": porcentaje,
