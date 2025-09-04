@@ -6,8 +6,10 @@ from pydantic import BaseModel
 from typing import List
 import random
 import math
+import numpy as np
 
 
+# ------------- CONFIGURACION DE LA API ------------------------------
 app = FastAPI()
 
 # Configurar CORS para desarrollo
@@ -26,7 +28,7 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 def root():
     return FileResponse("app/static/index.html")
 
-# Modelos de entrada
+# -------------------------- ENTRADAS DE DATOS --------------------------------
 class MultinomialRequest(BaseModel):
     n_experimentos: int
     categorias: List[str]
@@ -38,7 +40,12 @@ class ProbabilityRequest(BaseModel):
     probabilidades: List[float]
     frecuencias_deseadas: List[int]
 
-# Funciones auxiliares para cálculos
+class ExponencialRequest(BaseModel):
+    n_experimentos: int
+    tasa: float
+
+
+# ------------ FUNCIONES DE CALCULOS ------------------------------
 def factorial(n):
     """Calcula el factorial de n"""
     if n <= 1:
@@ -47,6 +54,10 @@ def factorial(n):
     for i in range(2, n + 1):
         resultado *= i
     return resultado
+
+def potencia(base, exponente):
+    """Calcula base^exponente usando la función math.pow para mayor precisión"""
+    return math.pow(base, exponente)
 
 
 def coeficiente_multinomial(n, frecuencias):
@@ -57,9 +68,7 @@ def coeficiente_multinomial(n, frecuencias):
         denominador *= factorial(freq)
     return numerador / denominador
 
-def potencia(base, exponente):
-    """Calcula base^exponente usando la función math.pow para mayor precisión"""
-    return math.pow(base, exponente)
+
 
 def funcion_densidad_multinomial(n, frecuencias, probabilidades):
     """
@@ -126,6 +135,89 @@ def validar_entrada(probabilidades, frecuencias_deseadas=None, n_experimentos=No
     
     return None
 
+
+def generar_exponencial(n_experimentos=None , tasa: float=None):
+    if tasa <= 0:
+        raise ValueError("La tasa debe ser un número positivo mayor que 0.")
+    
+    valores = []
+    us = []
+    
+
+    # Simulación de la distribución exponencial
+    for i in range(n_experimentos):
+        u = random.random()  # número uniforme entre 0 y 1
+        x = -math.log(1 - u) / tasa  # transformación inversa
+        valores.append(x)
+        us.append(u)
+    return valores, us
+
+def calcular_estadisticas_exponencial(valores: List[float], tasa: float):
+    """
+    Calcula estadísticas descriptivas y teóricas de la distribución exponencial
+    """
+    # Estadísticas observadas
+    media_observada = sum(valores) / len(valores)
+    varianza_observada = sum([(x - media_observada)**2 for x in valores]) / len(valores)
+    desviacion_observada = math.sqrt(varianza_observada)
+    
+    # Estadísticas teóricas
+    media_teorica = 1 / tasa
+    varianza_teorica = 1 / (tasa ** 2)
+    desviacion_teorica = math.sqrt(varianza_teorica)
+    
+    return {
+        "observadas": {
+            "media": media_observada,
+            "varianza": varianza_observada,
+            "desviacion_estandar": desviacion_observada,
+            "minimo": min(valores),
+            "maximo": max(valores)
+        },
+        "teoricas": {
+            "media": media_teorica,
+            "varianza": varianza_teorica,
+            "desviacion_estandar": desviacion_teorica
+        },
+        "comparacion": {
+            "error_media": abs(media_observada - media_teorica),
+            "error_relativo_media": abs(media_observada - media_teorica) / media_teorica * 100
+        }
+    }
+
+def generar_densidad_teorica(valores: List[float], tasa: float, num_puntos: int = 1000):
+    """
+    Genera los puntos para la curva de densidad teórica
+    """
+    x_max = max(valores)
+    x = np.linspace(0, x_max, num_puntos)
+    pdf = tasa * np.exp(-tasa * x)
+    
+    return x.tolist(), pdf.tolist()
+
+def calcular_histograma(valores: List[float], num_bins: int = 30):
+    """
+    Calcula los datos del histograma para enviar al frontend
+    """
+    # Crear histograma
+    counts, bin_edges = np.histogram(valores, bins=num_bins, density=True)
+    
+    # Calcular centros de los bins
+    bin_centers = [(bin_edges[i] + bin_edges[i+1]) / 2 for i in range(len(bin_edges)-1)]
+    
+    return {
+        "bins": bin_centers,
+        "frecuencias": counts.tolist(),
+        "bin_edges": bin_edges.tolist()
+    }
+
+
+
+
+
+
+
+# ---------------------------------------- FUNCIONES DE API PARA ENVIO DE DATOS  ---------------------------------
 @app.post("/multinomial")
 def multinomial(req: MultinomialRequest):
     """Endpoint original - simulación básica"""
@@ -145,6 +237,7 @@ def multinomial(req: MultinomialRequest):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error en simulación: {str(e)}")
+    
 
 @app.post("/calcular-probabilidad")
 def calcular_probabilidad(req: ProbabilityRequest):
@@ -319,5 +412,56 @@ def info():
             "/multinomial": "Simulación básica (original)",
             "/calcular-probabilidad": "Cálculo de probabilidad exacta",
             "/simular-verificacion": "Verificación mediante simulación"
+
         }
     }
+
+
+
+# ----------------------------------------------- EXPONENCIAL -------------------------------------------------------
+@app.post("/exponencial")
+def simular_exponencial(req: ExponencialRequest):
+    
+    try:
+        # Validaciones
+        if req.n_experimentos <= 0:
+            raise HTTPException(status_code=400, detail="El número de experimentos debe ser positivo")
+        if req.n_experimentos > 100000:
+            raise HTTPException(status_code=400, detail="Número máximo de experimentos: 100,000")
+        if req.tasa <= 0:
+            raise HTTPException(status_code=400, detail="La tasa debe ser un número positivo mayor que 0")
+        
+        # Generar valores exponenciales
+        valores, us = generar_exponencial(req.n_experimentos, req.tasa)
+        
+        # Calcular estadísticas
+        estadisticas = calcular_estadisticas_exponencial(valores, req.tasa)
+        
+        # Generar datos para el histograma
+        histograma = calcular_histograma(valores)
+        
+        # Generar curva de densidad teórica
+        x_teorica, pdf_teorica = generar_densidad_teorica(valores, req.tasa)
+        
+        return {
+            "parametros": {
+                "num_experimentos": req.n_experimentos,
+                "tasa": req.tasa
+            },
+            "datos": {
+                "valores": valores[:1000],  # Limitar a 1000 valores para evitar respuestas muy grandes
+                "valores_uniformes": us[:1000]
+            },
+            "estadisticas": estadisticas,
+            "histograma": histograma,
+            "densidad_teorica": {
+                "x": x_teorica,
+                "y": pdf_teorica
+            },
+            "mensaje": f"Simulación exponencial completada con {len(valores)} experimentos"
+        }
+        
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error en la simulación: {str(e)}")

@@ -1,7 +1,12 @@
 const ctx = document.getElementById("grafica").getContext("2d");
         let chart;
         let ultimoResultadoProbabilidad = null;
+        let histogramaChart=null;
 
+        function formatearNumero(num, decimales = 6) {
+        return Number(num).toFixed(decimales);
+        
+    }
         // Funciones para cambiar tabs
         function cambiarTab(tabName) {
             document.querySelectorAll('.tab-content').forEach(tab => {
@@ -20,6 +25,8 @@ const ctx = document.getElementById("grafica").getContext("2d");
         // Formulario de simulación
         document.getElementById("formulario-simulacion").addEventListener("submit", async (e) => {
             e.preventDefault();
+
+            console.log("Enviando formulario de simulación...");
 
             const n_experimentos = parseInt(document.getElementById("n_experimentos").value);
             const categorias = document.getElementById("categorias").value.split(",").map(c => c.trim());
@@ -66,6 +73,8 @@ const ctx = document.getElementById("grafica").getContext("2d");
         // Formulario de probabilidad exacta
         document.getElementById("formulario-probabilidad").addEventListener("submit", async (e) => {
             e.preventDefault();
+
+            console.log("Enviando formulario de probabilidad exacta...");
 
             const n_experimentos = parseInt(document.getElementById("n_experimentos_prob").value);
             const categorias = document.getElementById("categorias_prob").value.split(",").map(c => c.trim());
@@ -117,6 +126,7 @@ const ctx = document.getElementById("grafica").getContext("2d");
 
         // Botón de verificación
         document.getElementById("btn-verificar").addEventListener("click", async () => {
+            
             if (!ultimoResultadoProbabilidad) return;
 
             try {
@@ -140,6 +150,101 @@ const ctx = document.getElementById("grafica").getContext("2d");
                 alert("Error al realizar la verificación: " + error.message);
             }
         });
+
+        // -------------------------------------------------------------------------------
+        // ------------------------- FROM EXPONENCIAL ------------------------------------
+        // -------------------------------------------------------------------------------
+
+
+            document.addEventListener('DOMContentLoaded', () => {
+            console.log('[expo] script cargado');
+
+            const form = document.getElementById('formulario-expo');
+            if (!form) {
+                console.error('[expo] No se encontró #formulario-expo');
+                return;
+            }
+            console.log('[expo] formulario encontrado');
+
+            const nInput   = document.getElementById('n_experimentos_expo');
+            const tasaInput = document.getElementById('tasa_expo');
+
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                console.log('[expo] submit disparado');
+
+                const n_experimentos_expo = parseInt(nInput.value, 10);
+                const tasa = parseFloat(tasaInput.value);
+                console.log('[expo] valores leídos', { n_experimentos_expo, tasa });
+
+                if (!Number.isFinite(n_experimentos_expo) || n_experimentos_expo <= 0 ||
+                    !Number.isFinite(tasa) || tasa <= 0) {
+                alert('Por favor ingrese valores válidos para el número de experimentos y la tasa (λ > 0)');
+                return;
+                }
+                console.log('[expo] validación pasada');
+                const payload = { n_experimentos_expo, tasa };
+                console.log('Payload Exponencial:', payload);
+
+                try {
+                const res = await fetch('/exponencial', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        n_experimentos: n_experimentos_expo,  // debe coincidir con el modelo
+                        tasa: tasa
+                    })
+                });
+
+                const data = await res.json();
+
+                
+
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                    return;
+                }
+
+                console.log('[expo] respuesta recibida', data);
+                
+
+
+                // document.getElementById("resultado_expo_texto").textContent = JSON.stringify(data, null, 2);
+                document.getElementById("resultado-exponencial").style.display = 'block';
+
+                // CORREGIDO: usar 'data' en lugar de 'resultado'
+                document.getElementById('stats-container').style.display = 'grid';
+                document.getElementById('chart-container').style.display = 'block';
+                
+                // Llenar estadísticas
+                mostrarEstadisticas(data.estadisticas);  // ← CORREGIDO
+                
+                // Crear gráfico
+                crearHistograma(
+                    data.histograma,           // ← CORREGIDO
+                    data.densidad_teorica,     // ← CORREGIDO
+                    data.parametros.tasa       // ← CORREGIDO
+                );
+
+                // Scroll a resultados
+                setTimeout(() => {
+                    document.getElementById('results').scrollIntoView({ 
+                        behavior: 'smooth' 
+                    });
+                }, 200);
+
+
+                } catch (error) {
+                console.error('[expo] Error en fetch:', error);
+                alert('Error al conectar con la API: ' + error.message);
+                }
+            });
+            });
+
+
+        // ------------------------------------------------------------------------------------
+
+
 
         function mostrarResultadoProbabilidad(data) {
             const calculoHTML = `
@@ -345,3 +450,122 @@ const ctx = document.getElementById("grafica").getContext("2d");
 
         // Inicializar con frecuencias esperadas
         actualizarFrecuenciasEsperadas();
+
+
+
+    //   ----------------------------------------------------------------------------
+    //   ------------------------- ESTADISTICAS EXPONENCIAL --------------------------
+    //   ----------------------------------------------------------------------------
+        function mostrarEstadisticas(estadisticas) {
+            // Estadísticas observadas
+            const obsDiv = document.getElementById('stats-observadas');
+            obsDiv.innerHTML = `
+                <div class="stat-item">
+                    <span>Media:</span>
+                    <strong>${formatearNumero(estadisticas.observadas.media)}</strong>
+                </div>
+                <div class="stat-item">
+                    <span>Varianza:</span>
+                    <strong>${formatearNumero(estadisticas.observadas.varianza)}</strong>
+                </div>
+                <div class="stat-item">
+                    <span>Desv. Estándar:</span>
+                    <strong>${formatearNumero(estadisticas.observadas.desviacion_estandar)}</strong>
+                </div>
+                <div class="stat-item">
+                    <span>Mínimo:</span>
+                    <strong>${formatearNumero(estadisticas.observadas.minimo)}</strong>
+                </div>
+                <div class="stat-item">
+                    <span>Máximo:</span>
+                    <strong>${formatearNumero(estadisticas.observadas.maximo)}</strong>
+                </div>
+            `;
+
+            // Estadísticas teóricas
+            const teorDiv = document.getElementById('stats-teoricas');
+            teorDiv.innerHTML = `
+                <div class="stat-item">
+                    <span>Media:</span>
+                    <strong>${formatearNumero(estadisticas.teoricas.media)}</strong>
+                </div>
+                <div class="stat-item">
+                    <span>Varianza:</span>
+                    <strong>${formatearNumero(estadisticas.teoricas.varianza)}</strong>
+                </div>
+                <div class="stat-item">
+                    <span>Desv. Estándar:</span>
+                    <strong>${formatearNumero(estadisticas.teoricas.desviacion_estandar)}</strong>
+                </div>
+            `;
+
+            // Comparación
+            const compDiv = document.getElementById('stats-comparacion');
+            compDiv.innerHTML = `
+                <div class="stat-item">
+                    <span>Error en Media:</span>
+                    <strong>${formatearNumero(estadisticas.comparacion.error_media)}</strong>
+                </div>
+                <div class="stat-item">
+                    <span>Error Relativo:</span>
+                    <strong>${formatearNumero(estadisticas.comparacion.error_relativo_media, 2)}%</strong>
+                </div>
+            `;
+        }
+
+        // Crear histograma
+       function crearHistograma(histograma, densidadTeorica, tasa) {
+    if (histogramaChart) {
+        histogramaChart.destroy();
+    }
+
+    const ctx = document.getElementById('histograma').getContext('2d');
+
+    const datasets = [
+        {
+            label: 'Frecuencia Observada',
+            data: histograma.frecuencias,
+            backgroundColor: 'rgba(54, 162, 235, 0.7)',
+            borderColor: 'rgba(54, 162, 235, 1)',
+            borderWidth: 1,
+            yAxisID: 'y'
+        },
+        {
+            label: 'Densidad Teórica',
+            data: densidadTeorica.x.map((x, i) => ({ x, y: densidadTeorica.y[i] })),
+            type: 'line',
+            borderColor: 'rgba(255, 99, 132, 1)',
+            borderWidth: 2,
+            fill: false,
+            pointRadius: 0,
+            yAxisID: 'y'
+        }
+    ];
+
+    histogramaChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: histograma.bins.map(bin => formatearNumero(bin, 2)),
+            datasets: datasets
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                title: {
+                    display: true,
+                    text: `Distribución Exponencial (λ = ${tasa})`,
+                    font: { size: 16, weight: 'bold' }
+                },
+                legend: { position: 'top' }
+            },
+            scales: {
+                x: { type: 'linear', title: { display: true, text: 'Valores' } },
+                y: { type: 'linear', display: true, position: 'left', beginAtZero: true, title: { display: true, text: 'Densidad' } }
+            }
+        }
+    });
+}
+
+    

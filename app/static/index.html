@@ -9,11 +9,12 @@
 </head>
 <body>
     <div class="container">
-        <h1>🎲 Calculadora de Distribución Multinomial</h1>
+        <h1>🎲 Calculadora - Mineria de Datos</h1>
         
         <div class="tabs">
             <button class="tab-button active" onclick="cambiarTab('simulacion')">Simulación</button>
-            <button class="tab-button" onclick="cambiarTab('probabilidad')">Probabilidad Exacta</button>
+            <button class="tab-button" onclick="cambiarTab('probabilidad')">Multinomial</button>
+            <button class="tab-button" onclick="cambiarTab('exponencial')">Exponencial</button>
         </div>
 
         <!-- Tab de Simulación -->
@@ -73,7 +74,7 @@
 
                 <div class="buttons">
                     <button type="submit" class="btn-primary">📊 Calcular Probabilidad</button>
-                    <button type="button" id="btn-verificar" class="btn-secondary" style="display: none;">🔬 Verificar</button>
+                    <button type="button" id="btn-verificar" class="btn-secondary" style="display: none;">🧮 Verificar</button>
                 </div>
             </form>
 
@@ -89,15 +90,66 @@
                 <h3>Verificación por Simulación</h3>
                 <div id="verificacion-detalle"></div>
             </div>
+
+            
+        </div>
+
+        <div id="exponencial" class="tab-content">
+            <h2>EXPONENCIAL</h2>
+            <form id="formulario-expo">
+                <div class="input-group">
+                    <label>Número de experimentos:</label>
+                    <input type="number" id="n_experimentos_expo" value="10" min="1" required>
+                </div>
+
+                <div class="input-group">
+                    <label>Tasa (λ):</label>
+                    <input type="number" id="tasa_expo" value="1.0" step="0.001" min="0.001" required>
+                </div>
+
+                <button type="submit" class="btn-primary">📊 Calcular Exponencial</button>
+                
+            </form>
+
+            <div id="resultado-exponencial" class="resultado" style="display: none;">
+                <h3>Resultados de la Exponencial</h3>
+                <pre id="resultado_expo_texto"></pre>
+
+            </div>
+
+            <div id="stats-container" class="stats-grid" style="display: none;">
+                <div class="stats-card">
+                    <h3>📊 Estadísticas Observadas</h3>
+                    <div id="stats-observadas"></div>
+                </div>
+
+                <div class="stats-card">
+                    <h3>🎯 Estadísticas Teóricas</h3>
+                    <div id="stats-teoricas"></div>
+                </div>
+
+                <div class="stats-card">
+                    <h3>📈 Comparación</h3>
+                    <div id="stats-comparacion"></div>
+                </div>
+
+                <div id="chart-container" class="chart-container" style="display: none;">
+                    <h3>📈 Histograma y Densidad Teórica</h3>
+                    <canvas id="histograma" style="height: 400px; max-height: 400px;"></canvas>
+                </div>
+            </div>
+
         </div>
 
         <div id="grafica-container" style="display: none;" >
-            <h3>📈 Visualización</h3>
-            <canvas id="grafica"></canvas>
+                    <h3>📈 Visualización</h3>
+            <canvas id="grafica" ></canvas>
         </div>
+
+        
     </div>
 
-
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="/static/js/script.js"></script>
 
     
